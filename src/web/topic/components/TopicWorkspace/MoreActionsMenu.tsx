@@ -235,8 +235,7 @@ const TopicSubmenu = ({
             type="file"
             disabled={!userCanEditTopicData}
             onChange={(event) => {
-              void uploadTopic(event, sessionUser?.username);
-              handleClose();
+              void uploadTopic(event, sessionUser?.username).then(handleClose);
             }}
           />
         </MenuItem>
