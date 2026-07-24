@@ -49,7 +49,14 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { type Dispatch, type SetStateAction, useState } from "react";
+import {
+  type Dispatch,
+  Fragment,
+  type RefObject,
+  type SetStateAction,
+  useRef,
+  useState,
+} from "react";
 
 import { hasComments, resetComments } from "@/web/comment/store/commentStore";
 import { HelpIcon } from "@/web/common/components/HelpIcon";
@@ -132,6 +139,7 @@ export const MoreActionsMenu = ({
 
   const menuOpen = Boolean(anchorEl);
   const handleClose = () => setAnchorEl(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const format = useFormat();
   const isTableActive = format === "table";
@@ -142,9 +150,9 @@ export const MoreActionsMenu = ({
       key="topic"
       menuOpen={menuOpen}
       handleClose={handleClose}
-      sessionUser={sessionUser}
       userCanEditTopicData={userCanEditTopicData}
       isTableActive={isTableActive}
+      onUploadClick={() => uploadInputRef.current?.click()}
     />,
 
     !isTableActive && (
@@ -160,46 +168,77 @@ export const MoreActionsMenu = ({
     !isTableActive && <FilterSubmenu key="filter" menuOpen={menuOpen} />,
   ];
 
-  if (isMobile) {
-    return (
-      <MobileMenuDrawer
-        open={menuOpen}
-        onClose={handleClose}
-        slotProps={{ list: { dense: false } }} // give our More MenuItems a bit more breathing space because many of them have sizable icons like switches/radios
-      >
-        {menuContent}
-      </MobileMenuDrawer>
-    );
-  }
-
   return (
-    <Menu
-      anchorEl={anchorEl}
-      open={menuOpen}
-      onClose={handleClose}
-      closeOnClick={false}
-      openDirection={openDirection}
-      slotProps={{ list: { dense: false } }} // give our More MenuItems a bit more breathing space because many of them have sizable icons like switches/radios
-    >
-      {menuContent}
-    </Menu>
+    <Fragment>
+      <TopicUploadInput
+        inputRef={uploadInputRef}
+        sessionUsername={sessionUser?.username}
+        userCanEditTopicData={userCanEditTopicData}
+        onUpload={handleClose}
+      />
+      {isMobile ? (
+        <MobileMenuDrawer
+          open={menuOpen}
+          onClose={handleClose}
+          slotProps={{ list: { dense: false } }} // give our More MenuItems a bit more breathing space because many of them have sizable icons like switches/radios
+        >
+          {menuContent}
+        </MobileMenuDrawer>
+      ) : (
+        <Menu
+          anchorEl={anchorEl}
+          open={menuOpen}
+          onClose={handleClose}
+          closeOnClick={false}
+          openDirection={openDirection}
+          slotProps={{ list: { dense: false } }} // give our More MenuItems a bit more breathing space because many of them have sizable icons like switches/radios
+        >
+          {menuContent}
+        </Menu>
+      )}
+    </Fragment>
   );
 };
+
+interface TopicUploadInputProps {
+  inputRef: RefObject<HTMLInputElement>;
+  sessionUsername?: string;
+  userCanEditTopicData: boolean;
+  onUpload: () => void;
+}
+
+const TopicUploadInput = ({
+  inputRef,
+  sessionUsername,
+  userCanEditTopicData,
+  onUpload,
+}: TopicUploadInputProps) => (
+  <input
+    ref={inputRef}
+    hidden
+    accept=".json"
+    type="file"
+    disabled={!userCanEditTopicData}
+    onChange={(event) => {
+      void uploadTopic(event, sessionUsername).then(onUpload);
+    }}
+  />
+);
 
 interface TopicSubmenuProps {
   menuOpen: boolean;
   handleClose: () => void;
-  sessionUser?: { username: string } | null;
   userCanEditTopicData: boolean;
   isTableActive: boolean;
+  onUploadClick: () => void;
 }
 
 const TopicSubmenu = ({
   menuOpen,
   handleClose,
-  sessionUser,
   userCanEditTopicData,
   isTableActive,
+  onUploadClick,
 }: TopicSubmenuProps) => {
   const [screenshotDialogOpen, setScreenshotDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -224,20 +263,11 @@ const TopicSubmenu = ({
           <ListItemText primary="Download" />
         </MenuItem>
 
-        <MenuItem component="label" disabled={!userCanEditTopicData}>
+        <MenuItem onClick={onUploadClick} disabled={!userCanEditTopicData}>
           <ListItemIcon>
             <Upload />
           </ListItemIcon>
           <ListItemText primary="Upload" />
-          <input
-            hidden
-            accept=".json"
-            type="file"
-            disabled={!userCanEditTopicData}
-            onChange={(event) => {
-              void uploadTopic(event, sessionUser?.username).then(handleClose);
-            }}
-          />
         </MenuItem>
 
         {!isTableActive && (
